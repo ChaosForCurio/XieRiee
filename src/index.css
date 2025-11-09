@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global reset/consistency */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+
+/* Make the app a single, non-scrolling page; internal panels handle their own scroll */
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
