@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Avatar } from '@mui/material'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -16,6 +16,14 @@ type Message = {
   justAdded?: boolean
 }
 
+type Chat = {
+  id: string
+  title: string
+  messages: Message[]
+  createdAt: string
+  updatedAt: string
+}
+
 type ImportMetaWithEnv = { env?: Record<string, string | undefined> }
 
 type User = {
@@ -26,6 +34,85 @@ type User = {
   createdAt: string;
   updatedAt: string;
 }
+
+type OAuthProvider = 'google' | 'github' | 'linkedin'
+
+type ProviderConfig = {
+  provider: OAuthProvider
+  label: string
+  Icon: () => React.ReactElement
+}
+
+type ComposerProps = {
+  value: string
+  onChange: (value: string) => void
+  onSend: () => void
+  onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  isLoading: boolean
+  textareaRef: RefObject<HTMLTextAreaElement | null>
+  placeholder: string
+  onModeClick: () => void
+  isSticky?: boolean
+}
+
+const GoogleLogo = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+)
+
+const GitHubLogo = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+  </svg>
+)
+
+const LinkedInLogo = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="#0077B5" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+  </svg>
+)
+
+const providerConfigs: ProviderConfig[] = [
+  { provider: 'google', label: 'Google', Icon: GoogleLogo },
+  { provider: 'github', label: 'GitHub', Icon: GitHubLogo },
+  { provider: 'linkedin', label: 'LinkedIn', Icon: LinkedInLogo },
+]
+
+const Composer = ({
+  value,
+  onChange,
+  onSend,
+  onKeyDown,
+  isLoading,
+  textareaRef,
+  placeholder,
+  onModeClick,
+  isSticky = false,
+}: ComposerProps) => (
+  <div className={`composer${isSticky ? ' sticky' : ''}`}>
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
+      placeholder={placeholder}
+      rows={1}
+    />
+    <div className="composer-bar">
+      <div className="left">
+        <button className="pill" onClick={onModeClick}>All Web ▾</button>
+      </div>
+      <div className="right">
+        <span className="counter">{Math.min(1000, value.length)}/1000</span>
+        <button className="send" aria-label="Send" onClick={onSend} disabled={isLoading}>➤</button>
+      </div>
+    </div>
+  </div>
+)
 
 const insforge = createClient({
   baseUrl: 'https://k4viciqy.us-east.insforge.app',
@@ -55,29 +142,108 @@ const formatDateGroupLabel = (date: Date) => {
 
 const formatMessageTime = (value: string) => timeFormatter.format(parseMessageDate(value))
 
-const getAuthorLabel = (role: Message['role']) => (role === 'assistant' ? 'Gemini' : 'App.tsx')
+const formatChatUpdatedAt = (value: string) => {
+  const date = parseMessageDate(value)
+  const now = new Date()
+  if (isSameDay(date, now)) {
+    return timeFormatter.format(date)
+  }
+  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+  if (date.getFullYear() !== now.getFullYear()) options.year = 'numeric'
+  return new Intl.DateTimeFormat(undefined, options).format(date)
+}
+
+const getAuthorLabel = (role: Message['role'], userName?: string) => (role === 'assistant' ? 'Gemini' : (userName || 'You'))
 
 
 function App() {
-  const [messages, setMessages] = useState<Message[]>(() => {
+  const [chats, setChats] = useState<Chat[]>(() => {
     try {
-      const stored = localStorage.getItem('chatMessages')
-      if (!stored) return []
-      const parsed = JSON.parse(stored) as Array<Partial<Message>>
-      return parsed.map((m) => ({
-        id: m?.id || crypto.randomUUID(),
-        role: m?.role === 'assistant' ? 'assistant' : 'user',
-        content: typeof m?.content === 'string' ? m.content : '',
-        createdAt: typeof m?.createdAt === 'string' ? m.createdAt : new Date().toISOString(),
-        typing: m?.typing,
-        justAdded: m?.justAdded,
-      }))
+      const stored = localStorage.getItem('chatSessions')
+      if (stored) {
+        const parsed = JSON.parse(stored) as Array<Partial<Chat>>
+        return parsed.map((chat) => ({
+          id: chat?.id || crypto.randomUUID(),
+          title: chat?.title || 'New Chat',
+          messages: (chat?.messages || []).map((m) => ({
+            id: m?.id || crypto.randomUUID(),
+            role: m?.role === 'assistant' ? 'assistant' : 'user',
+            content: typeof m?.content === 'string' ? m.content : '',
+            createdAt: typeof m?.createdAt === 'string' ? m.createdAt : new Date().toISOString(),
+            typing: m?.typing,
+            justAdded: m?.justAdded,
+          })),
+          createdAt: chat?.createdAt || new Date().toISOString(),
+          updatedAt: chat?.updatedAt || new Date().toISOString(),
+        }))
+      }
+
+      // Migrate from old single chat format
+      const oldMessages = localStorage.getItem('chatMessages')
+      if (oldMessages) {
+        const parsed = JSON.parse(oldMessages) as Array<Partial<Message>>
+        const messages = parsed.map((m) => ({
+          id: m?.id || crypto.randomUUID(),
+          role: (m?.role === 'assistant' ? 'assistant' : 'user') as Message['role'],
+          content: typeof m?.content === 'string' ? m.content : '',
+          createdAt: typeof m?.createdAt === 'string' ? m.createdAt : new Date().toISOString(),
+          typing: m?.typing,
+          justAdded: m?.justAdded,
+        }))
+        const now = new Date().toISOString()
+        const defaultChat: Chat = {
+          id: crypto.randomUUID(),
+          title: 'Chat',
+          messages,
+          createdAt: now,
+          updatedAt: now,
+        }
+        return [defaultChat]
+      }
+
+      // Create a default chat if no chats exist
+      const now = new Date().toISOString()
+      const defaultChat: Chat = {
+        id: crypto.randomUUID(),
+        title: 'New Chat',
+        messages: [],
+        createdAt: now,
+        updatedAt: now,
+      }
+      return [defaultChat]
     } catch {
-      return []
+      // Create a default chat on error
+      const now = new Date().toISOString()
+      const defaultChat: Chat = {
+        id: crypto.randomUUID(),
+        title: 'New Chat',
+        messages: [],
+        createdAt: now,
+        updatedAt: now,
+      }
+      return [defaultChat]
+    }
+  })
+
+  const [currentChatId, setCurrentChatId] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem('currentChatId')
+      return stored || ''
+    } catch {
+      return ''
     }
   })
   const [input, setInput] = useState('')
   const [user, setUser] = useState<User | null>(null)
+
+  // Handle input change with word limit
+  const handleInputChange = (value: string) => {
+    const wordCount = value.trim().split(/\s+/).filter(word => word.length > 0).length
+    if (wordCount <= 1000) {
+      setInput(value)
+    }
+    // If over limit, don't update the input
+  }
   const [isLoading, setIsLoading] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
 
@@ -93,6 +259,16 @@ function App() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const [imageUrlInput, setImageUrlInput] = useState('')
+
+  // Computed values
+  const currentChat = useMemo(() => {
+    return chats.find(chat => chat.id === currentChatId) || null
+  }, [chats, currentChatId])
+
+  const messages = useMemo(() => {
+    return currentChat?.messages || []
+  }, [currentChat])
+
   const isLanding = useMemo(() => messages.length === 0, [messages.length])
 
   // On small screens, start with rail closed
@@ -101,7 +277,14 @@ function App() {
     if (mq.matches) setRailOpen(false)
   }, [])
 
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  // Initialize current chat
+  useEffect(() => {
+    if (!currentChatId && chats.length > 0) {
+      setCurrentChatId(chats[0].id)
+    }
+  }, [currentChatId, chats])
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const groupedMessages = useMemo(() => {
@@ -145,11 +328,23 @@ function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('chatMessages', JSON.stringify(messages))
+      localStorage.setItem('chatSessions', JSON.stringify(chats))
     } catch (error) {
-      console.warn('Failed to save chat messages to localStorage:', error)
+      console.warn('Failed to save chat sessions to localStorage:', error)
     }
-  }, [messages])
+  }, [chats])
+
+  useEffect(() => {
+    try {
+      if (currentChatId) {
+        localStorage.setItem('currentChatId', currentChatId)
+      } else {
+        localStorage.removeItem('currentChatId')
+      }
+    } catch (error) {
+      console.warn('Failed to save current chat ID to localStorage:', error)
+    }
+  }, [currentChatId])
 
   useEffect(() => {
     const getSession = async () => {
@@ -199,10 +394,7 @@ function App() {
       const isNewline = fullText[i] === '\n'
       const shouldFlush = isNewline || i % batch === 0 || i === fullText.length - 1
       if (shouldFlush) {
-        setMessages((prev) => prev.map((m) => {
-          if (m.id !== msgId) return m
-          return { ...m, content: out, justAdded: firstFlush ? true : m.justAdded }
-        }))
+        updateMessageInCurrentChat(msgId, (m) => ({ ...m, content: out, justAdded: firstFlush ? true : m.justAdded }))
         // turn off justAdded after the very first flush so blur animation runs once
         if (firstFlush) {
           firstFlush = false
@@ -213,14 +405,20 @@ function App() {
       }
     }
     // finish typing
-    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, typing: false, justAdded: false } : m)))
+    updateMessageInCurrentChat(msgId, (m) => ({ ...m, typing: false, justAdded: false }))
   }
 
-  const sendMessage = async () => {
+  const handleSend = async () => {
     const text = input.trim()
-    if (!text || isLoading) return
+    if (!text || isLoading || !currentChatId) return
     const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: text, createdAt: new Date().toISOString() }
-    setMessages((prev) => [...prev, userMsg])
+    addMessageToCurrentChat(userMsg)
+
+    // Update chat title with the latest user message
+    const updatedMessages = currentChat ? [...currentChat.messages, userMsg] : [userMsg]
+    const newTitle = generateChatTitle(updatedMessages)
+    updateChatTitle(currentChatId, newTitle)
+
     setInput('')
     setIsLoading(true)
     let resolvedUrl = ''
@@ -233,7 +431,7 @@ function App() {
       }
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 20000)
 
       const apiResponse = await fetch(url, {
         method: 'POST',
@@ -255,7 +453,7 @@ function App() {
             detail = await apiResponse.text()
           }
         } catch {
-          // ignore detail parse errors
+          detail = ''
         }
         throw new Error(`Backend error ${apiResponse.status}${detail ? ': ' + detail : ''}`)
       }
@@ -263,12 +461,10 @@ function App() {
       const data = await apiResponse.json()
       const replyText: string = data?.reply || ''
 
-      // Add an assistant message and progressively type it out
       const msgId = crypto.randomUUID()
       const initial: Message = { id: msgId, role: 'assistant', content: '', createdAt: new Date().toISOString(), typing: true, justAdded: true }
-      setMessages((prev) => [...prev, initial])
+      addMessageToCurrentChat(initial)
 
-      // Start streaming typing effect
       await typeOutMessage(msgId, replyText)
     } catch (error) {
       console.error('Error calling backend API:', error)
@@ -300,7 +496,7 @@ function App() {
         content: `Sorry, I encountered an error. ${msg}`,
         createdAt: new Date().toISOString(),
       }
-      setMessages((prev) => [...prev, errorReply])
+      addMessageToCurrentChat(errorReply)
     } finally {
       setIsLoading(false)
     }
@@ -309,20 +505,90 @@ function App() {
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      sendMessage()
+      handleSend()
     }
   }
 
-  const newChat = () => {
-    setMessages([])
+  const generateChatTitle = (messages: Message[]): string => {
+    if (messages.length === 0) return 'New Chat'
+    // Find the most recent user message
+    const latestUserMessage = [...messages].reverse().find(msg => msg.role === 'user')
+    if (latestUserMessage) {
+      // Take first 30 characters of the latest user message
+      const content = latestUserMessage.content.slice(0, 30)
+      return content.length < latestUserMessage.content.length ? content + '...' : content
+    }
+    return 'New Chat'
+  }
+
+  const createNewChat = () => {
+    if (chats.length >= 6) return // Limit to 6 chats
+
+    const now = new Date().toISOString()
+    const newChat: Chat = {
+      id: crypto.randomUUID(),
+      title: 'New Chat',
+      messages: [],
+      createdAt: now,
+      updatedAt: now,
+    }
+    setChats(prev => [newChat, ...prev])
+    setCurrentChatId(newChat.id)
     setInput('')
+  }
+
+  const selectChat = (chatId: string) => {
+    setCurrentChatId(chatId)
+    setInput('')
+  }
+
+  const deleteChat = (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (window.confirm('Are you sure you want to delete this chat?')) {
+      setChats(prev => {
+        const filtered = prev.filter(chat => chat.id !== chatId)
+        if (currentChatId === chatId) {
+          setCurrentChatId(filtered.length > 0 ? filtered[0].id : '')
+        }
+        return filtered
+      })
+    }
+  }
+
+  const updateChatTitle = (chatId: string, title: string) => {
+    setChats(prev => prev.map(chat =>
+      chat.id === chatId
+        ? { ...chat, title, updatedAt: new Date().toISOString() }
+        : chat
+    ))
+  }
+
+  // Helper functions for updating current chat messages
+  const updateCurrentChatMessages = (updater: (messages: Message[]) => Message[]) => {
+    if (!currentChatId) return
+    setChats(prev => prev.map(chat =>
+      chat.id === currentChatId
+        ? { ...chat, messages: updater(chat.messages), updatedAt: new Date().toISOString() }
+        : chat
+    ))
+  }
+
+  const addMessageToCurrentChat = (message: Message) => {
+    updateCurrentChatMessages(prev => [...prev, message])
+  }
+
+  const updateMessageInCurrentChat = (messageId: string, updater: (message: Message) => Message) => {
+    updateCurrentChatMessages(prev => prev.map(msg =>
+      msg.id === messageId ? updater(msg) : msg
+    ))
   }
 
   const openSettings = () => alert('Settings coming soon')
   const signOut = async () => {
     await insforge.auth.signOut()
     setUser(null)
-    setMessages([])
+    setChats([])
+    setCurrentChatId('')
     setInput('')
   }
 
@@ -357,6 +623,18 @@ function App() {
     }
   }
 
+  const ProviderButton = ({ provider, label, Icon }: ProviderConfig) => (
+    <button
+      onClick={() => signInWithProvider(provider)}
+      disabled={isLoading}
+      className="signin-button"
+    >
+      <Icon />
+      {isLoading ? 'Signing in...' : `Sign in with ${label}`}
+    </button>
+  )
+
+  const handleModeClick = () => alert('Web search mode')
 
   const handleProfileClick = () => setShowProfileModal(true)
 
@@ -390,64 +668,24 @@ function App() {
   const clearChatHistory = () => {
     try {
       localStorage.removeItem('chatMessages')
+      localStorage.removeItem('chatSessions')
+      localStorage.removeItem('currentChatId')
     } catch (e) {
       console.warn('Failed to clear chat history from localStorage:', e)
     }
-    setMessages([])
+    setChats([])
+    setCurrentChatId('')
     setShowPrivacyModal(false)
   }
-
-  // Provider logo components
-  const GoogleLogo = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-    </svg>
-  )
-
-  const GitHubLogo = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-    </svg>
-  )
-
-  const LinkedInLogo = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="#0077B5" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-    </svg>
-  )
 
   if (!user) {
     return (
       <div className="signin-page">
         <h1>Sign in to XieRiee</h1>
         <div className="signin-buttons">
-          <button
-            onClick={() => signInWithProvider('google')}
-            disabled={isLoading}
-            className="signin-button"
-          >
-            <GoogleLogo />
-            {isLoading ? 'Signing in...' : 'Sign in with Google'}
-          </button>
-          <button
-            onClick={() => signInWithProvider('github')}
-            disabled={isLoading}
-            className="signin-button"
-          >
-            <GitHubLogo />
-            {isLoading ? 'Signing in...' : 'Sign in with GitHub'}
-          </button>
-          <button
-            onClick={() => signInWithProvider('linkedin')}
-            disabled={isLoading}
-            className="signin-button"
-          >
-            <LinkedInLogo />
-            {isLoading ? 'Signing in...' : 'Sign in with LinkedIn'}
-          </button>
+          {providerConfigs.map((config) => (
+            <ProviderButton key={config.provider} {...config} />
+          ))}
         </div>
         {authError && (
           <div className="auth-error">
@@ -465,14 +703,14 @@ function App() {
         <div className="ls-top">
           <button
             className="ls-toggle"
-            aria-label={railOpen ? 'Close sidebar' : 'Open sidebar'}
-            data-tip={railOpen ? 'Close sidebar' : 'Open sidebar'}
-            onClick={() => setRailOpen((v) => !v)}
+            aria-label={railOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            data-tip={railOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            onClick={() => setRailOpen(!railOpen)}
           >
-            {railOpen ? '‹' : '›'}
+            {railOpen ? '⟨' : '⟩'}
           </button>
 
-          <div className="profile" data-tip="Click to change profile picture" onClick={handleProfileClick} style={{ cursor: 'pointer' }}>
+          <div className="profile" data-tip="Profile" onClick={handleProfileClick} style={{ cursor: 'pointer' }}>
             <Avatar
               src={profilePicture || undefined}
               sx={{
@@ -487,23 +725,76 @@ function App() {
               {!profilePicture && (user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U')}
             </Avatar>
             <div className="user-meta">
-              <div className="name">{user?.name || user?.email || 'Guest'}</div>
-              <div className="role">Authenticated</div>
+              <div className="name">{user?.name || user?.email || 'User'}</div>
             </div>
           </div>
 
-          <button className="new-chat" data-tip="New" onClick={newChat}>
+          <button
+            className={`new-chat ${chats.length >= 6 ? 'disabled' : ''}`}
+            onClick={createNewChat}
+            disabled={chats.length >= 6}
+          >
             <span className="ic">＋</span>
             <span className="label">New chat</span>
           </button>
 
+          <button
+            className="chat-history-btn"
+            data-tip="Chat history"
+            onClick={() => setRailOpen(!railOpen)}
+          >
+            <span className="ic">📋</span>
+            <span className="label">Chat history</span>
+            {railOpen && (
+              <div className="quota">
+                <span className="chat-progress">{chats.length}/6</span>
+              </div>
+            )}
+          </button>
+
           <div className="history">
-            <div className="hist-title">Your chats</div>
+            <div className="chat-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              {chats.length === 0 ? (
+                <div className="empty-chat-state">
+                  <div className="empty-icon">📋</div>
+                  <div className="empty-text">No chats yet</div>
+                  <div className="empty-hint">Start a new conversation to get started</div>
+                </div>
+              ) : (
+                chats.map((chat) => {
+                  const isActive = chat.id === currentChatId
+                  return (
+                    <button
+                      key={chat.id}
+                      className={`chat-item${isActive ? ' active' : ''}`}
+                      onClick={() => selectChat(chat.id)}
+                      type="button"
+                    >
+                      <div className="chat-content">
+                        <div className="chat-title">{chat.title}</div>
+                        <div className="chat-meta">
+                          <span className="message-count">{chat.messages.length} msg{chat.messages.length === 1 ? '' : 's'}</span>
+                          <span className="chat-date">{formatChatUpdatedAt(chat.updatedAt)}</span>
+                        </div>
+                      </div>
+                      <button
+                        className="delete-chat"
+                        onClick={(e) => deleteChat(chat.id, e)}
+                        aria-label="Delete chat"
+                        type="button"
+                      >
+                        ×
+                      </button>
+                    </button>
+                  )
+                })
+              )}
+            </div>
           </div>
         </div>
 
         <div className="ls-bottom">
-          <button className="privacy" data-tip="Privacy" onClick={openPrivacy}>
+          <button className="privacy" data-tip="Privacy manager" onClick={openPrivacy}>
             <span className="label">Privacy</span>
             <span className="ic">🔒</span>
           </button>
@@ -526,25 +817,16 @@ function App() {
 
 
 
-            <div className="composer">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder="Ask whatever you want…"
-                rows={1}
-              />
-              <div className="composer-bar">
-                <div className="left">
-                  <button className="pill" onClick={() => alert('Web search mode')}>All Web ▾</button>
-                </div>
-                <div className="right">
-                  <span className="counter">0/1000</span>
-                  <button className="send" aria-label="Send" onClick={sendMessage} disabled={isLoading}>➤</button>
-                </div>
-              </div>
-            </div>
+            <Composer
+              textareaRef={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              onSend={handleSend}
+              onKeyDown={onKeyDown}
+              placeholder="Ask whatever you want…"
+              isLoading={isLoading}
+              onModeClick={handleModeClick}
+            />
           </section>
         ) : (
           <section className="chat">
@@ -568,7 +850,7 @@ function App() {
                       )}
                       <div className={`bubble${m.role === 'assistant' && (m.typing || m.justAdded) ? ' blur-reveal' : ''}${m.role === 'assistant' && m.typing ? ' typing' : ''}`}>
                         <div className="message-meta">
-                          <span className="author">{getAuthorLabel(m.role)}</span>
+                          <span className="author">{getAuthorLabel(m.role, user?.name)}</span>
                           <time className="timestamp" dateTime={m.createdAt}>{formatMessageTime(m.createdAt)}</time>
                         </div>
                         {m.role === 'assistant' ? (
@@ -629,25 +911,17 @@ function App() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="composer sticky">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder="Type your message…"
-                rows={1}
-              />
-              <div className="composer-bar">
-                <div className="left">
-                  <button className="pill" onClick={() => alert('Web search mode')}>All Web ▾</button>
-                </div>
-                <div className="right">
-                  <span className="counter">{Math.min(1000, input.length)}/1000</span>
-                  <button className="send" aria-label="Send" onClick={sendMessage} disabled={isLoading}>➤</button>
-                </div>
-              </div>
-            </div>
+            <Composer
+              textareaRef={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              onSend={handleSend}
+              onKeyDown={onKeyDown}
+              placeholder="Type your message…"
+              isLoading={isLoading}
+              onModeClick={handleModeClick}
+              isSticky
+            />
           </section>
         )}
       </main>
