@@ -348,3 +348,64 @@
   .landing { padding: 32px 16px 16px; }
   .app-root.rail-closed { --rail-w: 48px; }
 }
+
+/* Sign in page */
+.signin-page {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text);
+}
+.signin-page h1 {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 40px;
+}
+.signin-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.signin-buttons button,
+.signin-button {
+  width: 280px;
+  padding: 12px 24px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+.signin-buttons button:hover,
+.signin-button:hover {
+  background: #141a21;
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.signin-buttons button:disabled,
+.signin-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.signin-button svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.auth-error {
+  color: #ef4444;
+  margin-top: 20px;
+  text-align: center;
+  font-size: 14px;
+}
