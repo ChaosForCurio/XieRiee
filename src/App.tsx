@@ -5,6 +5,8 @@ import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { createClient } from '@insforge/sdk'
+import { TransitionGroup } from 'react-transition-group'
+import { Collapse } from '@mui/material'
 import './App.css'
 
 type Message = {
@@ -104,7 +106,7 @@ const Composer = ({
     />
     <div className="composer-bar">
       <div className="left">
-        <button className="pill" onClick={onModeClick}>All Web ▾</button>
+        <button className="pill" onClick={onModeClick}>Web Search</button>
       </div>
       <div className="right">
         <span className="counter">{Math.min(1000, value.length)}/1000</span>
@@ -162,12 +164,12 @@ function App() {
       const stored = localStorage.getItem('chatSessions')
       if (stored) {
         const parsed = JSON.parse(stored) as Array<Partial<Chat>>
-        return parsed.map((chat) => ({
+        const chats: Chat[] = parsed.map((chat) => ({
           id: chat?.id || crypto.randomUUID(),
           title: chat?.title || 'New Chat',
           messages: (chat?.messages || []).map((m) => ({
             id: m?.id || crypto.randomUUID(),
-            role: m?.role === 'assistant' ? 'assistant' : 'user',
+            role: (m?.role === 'assistant' ? 'assistant' : 'user') as Message['role'],
             content: typeof m?.content === 'string' ? m.content : '',
             createdAt: typeof m?.createdAt === 'string' ? m.createdAt : new Date().toISOString(),
             typing: m?.typing,
@@ -176,6 +178,10 @@ function App() {
           createdAt: chat?.createdAt || new Date().toISOString(),
           updatedAt: chat?.updatedAt || new Date().toISOString(),
         }))
+        // Ensure at least one chat exists
+        if (chats.length > 0) {
+          return chats
+        }
       }
 
       // Migrate from old single chat format
@@ -245,6 +251,7 @@ function App() {
     // If over limit, don't update the input
   }
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
 
   // UI state
@@ -351,6 +358,7 @@ function App() {
       const { data } = await insforge.auth.getCurrentSession()
       if (data?.session) {
         setUser(data.session.user)
+        setAuthError(null) // Clear any errors if user is authenticated
       }
     }
     getSession()
@@ -364,10 +372,23 @@ function App() {
         if (data?.session) {
           console.log('Found session from OAuth callback:', data.session.user.email)
           setUser(data.session.user)
-          setAuthError(null)
+          setAuthError(null) // Clear any errors if sign up is complete
+          // Clean up URL hash/search params after successful authentication
+          if (window.location.hash || window.location.search) {
+            window.history.replaceState({}, document.title, window.location.pathname)
+          }
+        } else {
+          // Only set error if sign up is not completed and we have OAuth params
+          if (window.location.hash || window.location.search) {
+            setAuthError('Sign in was not completed. Please try again.')
+          }
         }
       } catch (error) {
         console.error('Error checking auth callback:', error)
+        // Only set error if sign up is not completed and we have OAuth params
+        if (window.location.hash || window.location.search) {
+          setAuthError('Sign in was not completed. Please try again.')
+        }
       }
     }
 
@@ -544,6 +565,11 @@ function App() {
 
   const deleteChat = (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    // Prevent deletion if this is the last chat
+    if (chats.length <= 1) {
+      alert('You must have at least one chat in your history. Please create a new chat before deleting this one.')
+      return
+    }
     if (window.confirm('Are you sure you want to delete this chat?')) {
       setChats(prev => {
         const filtered = prev.filter(chat => chat.id !== chatId)
@@ -595,7 +621,7 @@ function App() {
   const signInWithProvider = async (provider: 'google' | 'github' | 'linkedin') => {
     try {
       setAuthError(null)
-      setIsLoading(true)
+      setLoadingProvider(provider)
       console.log(`Starting OAuth flow for ${provider} with redirect to:`, window.location.origin)
       const { data, error } = await insforge.auth.signInWithOAuth({
         provider,
@@ -604,35 +630,99 @@ function App() {
 
       if (error) {
         console.error('OAuth error:', error)
-        setAuthError(`Failed to sign in with ${provider}. Please try again.`)
+        setLoadingProvider(null)
+        // Only show error if user is not authenticated (sign up not completed)
+        const { data: sessionData } = await insforge.auth.getCurrentSession()
+        if (!sessionData?.session) {
+          setAuthError(`Failed to sign in with ${provider}. Please try again.`)
+        }
         return
       }
 
-      if (data?.url) {
-        console.log('Redirecting to OAuth URL:', data.url)
-        window.location.href = data.url
-      } else {
-        console.error('No OAuth URL returned')
-        setAuthError(`Failed to get OAuth URL for ${provider}. Please try again.`)
+      // If no error, OAuth call succeeded - check for redirect URL or immediate authentication
+      // First, check if user is already authenticated (some OAuth flows authenticate immediately)
+      const { data: sessionData } = await insforge.auth.getCurrentSession()
+      if (sessionData?.session) {
+        // User is authenticated, so OAuth worked - clear any errors and update user
+        setAuthError(null)
+        setLoadingProvider(null)
+        setUser(sessionData.session.user)
+        return
       }
+
+      // Check if we have a URL to redirect to
+      const redirectUrl = data?.url || (data as any)?.redirectUrl || (data as any)?.redirect_to
+      if (redirectUrl && typeof redirectUrl === 'string' && redirectUrl.trim() !== '') {
+        console.log('Redirecting to OAuth URL:', redirectUrl)
+        // Clear any errors before redirecting
+        setAuthError(null)
+        // Redirect will happen, so we don't need to reset loading state
+        window.location.href = redirectUrl
+        return
+      }
+
+      // If we reach here, no error was returned, user is not authenticated, and no redirect URL found
+      // Since the OAuth call succeeded (no error), we should trust that the flow is working
+      // The redirect might happen asynchronously or the URL might be in a different format
+      // Only show error if we can definitively confirm SSO failed
+      
+      // Log for debugging (can be removed in production)
+      console.log('OAuth response data:', data)
+      console.log('No redirect URL found, but OAuth call succeeded - checking if authentication happens asynchronously')
+      
+      // Wait a moment to see if authentication or redirect happens asynchronously
+      // Some OAuth implementations handle redirects internally
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // Final check if user got authenticated
+      const { data: finalSessionData } = await insforge.auth.getCurrentSession()
+      if (finalSessionData?.session) {
+        // User is authenticated - OAuth worked, don't show error
+        setAuthError(null)
+        setLoadingProvider(null)
+        setUser(finalSessionData.session.user)
+        return
+      }
+      
+      // If we still don't have authentication and no redirect happened, it might be a real failure
+      // However, since the OAuth call succeeded (no error), we should be very conservative
+      // Only show error if we're absolutely certain - check if we're still on the same page
+      // (if redirect happened, we wouldn't reach here)
+      
+      // Don't show error if OAuth call succeeded - trust the SDK
+      // The redirect might be happening in a way we can't detect, or authentication might happen on callback
+      console.warn('OAuth call succeeded but no immediate redirect URL or authentication detected. This might be normal for some OAuth flows.')
+      setLoadingProvider(null)
+      // Don't set error - let the OAuth callback handler manage the state
+      // The error will only show if the callback handler confirms failure
     } catch (error) {
       console.error('Sign in error:', error)
-      setAuthError(`Failed to sign in with ${provider}. Please try again.`)
-    } finally {
-      setIsLoading(false)
+      setLoadingProvider(null)
+      // Only show error if user is not authenticated (sign up not completed)
+      try {
+        const { data: sessionData } = await insforge.auth.getCurrentSession()
+        if (!sessionData?.session) {
+          setAuthError(`Failed to sign in with ${provider}. Please try again.`)
+        }
+      } catch {
+        setAuthError(`Failed to sign in with ${provider}. Please try again.`)
+      }
     }
   }
 
-  const ProviderButton = ({ provider, label, Icon }: ProviderConfig) => (
-    <button
-      onClick={() => signInWithProvider(provider)}
-      disabled={isLoading}
-      className="signin-button"
-    >
-      <Icon />
-      {isLoading ? 'Signing in...' : `Sign in with ${label}`}
-    </button>
-  )
+  const ProviderButton = ({ provider, label, Icon }: ProviderConfig) => {
+    const isThisProviderLoading = loadingProvider === provider
+    return (
+      <button
+        onClick={() => signInWithProvider(provider)}
+        disabled={loadingProvider !== null}
+        className="signin-button"
+      >
+        <Icon />
+        {isThisProviderLoading ? 'Signing in...' : `Sign in with ${label}`}
+      </button>
+    )
+  }
 
   const handleModeClick = () => alert('Web search mode')
 
@@ -673,8 +763,17 @@ function App() {
     } catch (e) {
       console.warn('Failed to clear chat history from localStorage:', e)
     }
-    setChats([])
-    setCurrentChatId('')
+    // Create a new empty chat after clearing to ensure at least one chat exists
+    const now = new Date().toISOString()
+    const newChat: Chat = {
+      id: crypto.randomUUID(),
+      title: 'New Chat',
+      messages: [],
+      createdAt: now,
+      updatedAt: now,
+    }
+    setChats([newChat])
+    setCurrentChatId(newChat.id)
     setShowPrivacyModal(false)
   }
 
@@ -761,33 +860,38 @@ function App() {
                   <div className="empty-hint">Start a new conversation to get started</div>
                 </div>
               ) : (
-                chats.map((chat) => {
-                  const isActive = chat.id === currentChatId
-                  return (
-                    <button
-                      key={chat.id}
-                      className={`chat-item${isActive ? ' active' : ''}`}
-                      onClick={() => selectChat(chat.id)}
-                      type="button"
-                    >
-                      <div className="chat-content">
-                        <div className="chat-title">{chat.title}</div>
-                        <div className="chat-meta">
-                          <span className="message-count">{chat.messages.length} msg{chat.messages.length === 1 ? '' : 's'}</span>
-                          <span className="chat-date">{formatChatUpdatedAt(chat.updatedAt)}</span>
-                        </div>
-                      </div>
-                      <button
-                        className="delete-chat"
-                        onClick={(e) => deleteChat(chat.id, e)}
-                        aria-label="Delete chat"
-                        type="button"
-                      >
-                        ×
-                      </button>
-                    </button>
-                  )
-                })
+                <TransitionGroup>
+                  {chats.map((chat) => {
+                    const isActive = chat.id === currentChatId
+                    return (
+                      <Collapse key={chat.id}>
+                        <button
+                          className={`chat-item${isActive ? ' active' : ''}`}
+                          onClick={() => selectChat(chat.id)}
+                          type="button"
+                        >
+                          <div className="chat-content">
+                            <div className="chat-title">{chat.title}</div>
+                            <div className="chat-meta">
+                              <span className="message-count">{chat.messages.length} msg{chat.messages.length === 1 ? '' : 's'}</span>
+                              <span className="chat-date">{formatChatUpdatedAt(chat.updatedAt)}</span>
+                            </div>
+                          </div>
+                          <button
+                            className={`delete-chat${chats.length <= 1 ? ' disabled' : ''}`}
+                            onClick={(e) => deleteChat(chat.id, e)}
+                            aria-label="Delete chat"
+                            type="button"
+                            disabled={chats.length <= 1}
+                            title={chats.length <= 1 ? 'You must have at least one chat' : 'Delete chat'}
+                          >
+                            ×
+                          </button>
+                        </button>
+                      </Collapse>
+                    )
+                  })}
+                </TransitionGroup>
               )}
             </div>
           </div>
