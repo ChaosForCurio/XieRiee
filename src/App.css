@@ -9,7 +9,6 @@
   --rail-w: 260px;
 }
 
-/* App shell */
 .app-root {
   height: 100vh;
   height: 100dvh;
@@ -21,19 +20,18 @@
 }
 .app-root.rail-closed { --rail-w: 56px; }
 
-/* Left sidebar */
 .left-sidebar {
-  background: #0a0a0a; /* Grey 958 - Night +1 */
-  border-right: 1px solid #000000; /* Black - Night 0 */
+  background: #0a0a0a;
+  border-right: 1px solid #000000;
   display: grid;
   grid-template-rows: auto 1fr auto;
   align-items: start;
   padding: 20px 14px;
   gap: 20px;
-  position: relative; /* for tooltips positioning */
+  position: relative;
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.02);
-  overflow-x: hidden; /* Prevent horizontal overflow */
-  min-width: 0; /* Allow sidebar to shrink */
+  overflow-x: hidden;
+  min-width: 0;
 }
 .ls-toggle {
   width: 36px; height: 36px; border-radius: 10px;
@@ -248,7 +246,7 @@
   align-items: center;
   background: #000000; /* Black background */
   border: 1px solid #000000; /* Black border */
-  color: #ffffff; /* White text */
+  color: #000000; /* White text */
   border-radius: 12px;
   transition: all 0.2s ease;
   position: relative;
@@ -410,6 +408,13 @@
   margin-bottom: 12px;
   opacity: 0.5;
 }
+
+.empty-icon img {
+  width: 48px;
+  height: 48px;
+  display: block;
+}
+
 .empty-text {
   font-size: 14px;
   font-weight: 600;
@@ -425,7 +430,7 @@
 .chat-history-btn, .privacy, .settings, .signout {
   width: 100%; text-align: left;
   background: #000000; /* Black background */
-  color: #ffffff; /* White text */
+  color: #504949; /* White text */
   border: 1px solid #000000;
   border-radius: 10px; padding: 10px 14px;
   display: flex;
@@ -459,12 +464,25 @@
   border-color: #4a1a1a;
   color: #ffffff;
 }
-.chat-history-btn .ic, .privacy .ic, .settings .ic, .signout .ic {
+.chat-history-btn .ic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-history-btn .ic img {
+  width: 18px;
+  height: 18px;
+  display: block;
+  filter: brightness(0) invert(1);
+}
+
+.privacy .ic, .settings .ic, .signout .ic {
   font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff; /* White icons */
+  color: #393131; /* White icons */
   filter: brightness(0) invert(1); /* Makes emojis appear white */
 }
 .privacy, .settings { margin-bottom: 0; }

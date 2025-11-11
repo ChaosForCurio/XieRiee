@@ -39,6 +39,27 @@ type User = {
 
 type OAuthProvider = 'google' | 'github' | 'linkedin'
 
+const getRedirectUrlFromOAuthResponse = (response: unknown): string | null => {
+  if (typeof response !== 'object' || response === null) {
+    return null
+  }
+
+  const candidates = ['url', 'redirectUrl', 'redirect_to'] as const
+  const record = response as Record<string, unknown>
+
+  for (const key of candidates) {
+    const value = record[key]
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (trimmed !== '') {
+        return trimmed
+      }
+    }
+  }
+
+  return null
+}
+
 type ProviderConfig = {
   provider: OAuthProvider
   label: string
@@ -178,13 +199,11 @@ function App() {
           createdAt: chat?.createdAt || new Date().toISOString(),
           updatedAt: chat?.updatedAt || new Date().toISOString(),
         }))
-        // Ensure at least one chat exists
         if (chats.length > 0) {
           return chats
         }
       }
 
-      // Migrate from old single chat format
       const oldMessages = localStorage.getItem('chatMessages')
       if (oldMessages) {
         const parsed = JSON.parse(oldMessages) as Array<Partial<Message>>
@@ -207,7 +226,6 @@ function App() {
         return [defaultChat]
       }
 
-      // Create a default chat if no chats exist
       const now = new Date().toISOString()
       const defaultChat: Chat = {
         id: crypto.randomUUID(),
@@ -218,7 +236,6 @@ function App() {
       }
       return [defaultChat]
     } catch {
-      // Create a default chat on error
       const now = new Date().toISOString()
       const defaultChat: Chat = {
         id: crypto.randomUUID(),
@@ -242,19 +259,16 @@ function App() {
   const [input, setInput] = useState('')
   const [user, setUser] = useState<User | null>(null)
 
-  // Handle input change with word limit
   const handleInputChange = (value: string) => {
     const wordCount = value.trim().split(/\s+/).filter(word => word.length > 0).length
     if (wordCount <= 1000) {
       setInput(value)
     }
-    // If over limit, don't update the input
   }
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
 
-  // UI state
   const [railOpen, setRailOpen] = useState(true)
   const [profilePicture, setProfilePicture] = useState<string | null>(() => {
     try {
@@ -267,7 +281,6 @@ function App() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const [imageUrlInput, setImageUrlInput] = useState('')
 
-  // Computed values
   const currentChat = useMemo(() => {
     return chats.find(chat => chat.id === currentChatId) || null
   }, [chats, currentChatId])
@@ -278,13 +291,11 @@ function App() {
 
   const isLanding = useMemo(() => messages.length === 0, [messages.length])
 
-  // On small screens, start with rail closed
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 900px)')
     if (mq.matches) setRailOpen(false)
   }, [])
 
-  // Initialize current chat
   useEffect(() => {
     if (!currentChatId && chats.length > 0) {
       setCurrentChatId(chats[0].id)
@@ -358,13 +369,12 @@ function App() {
       const { data } = await insforge.auth.getCurrentSession()
       if (data?.session) {
         setUser(data.session.user)
-        setAuthError(null) // Clear any errors if user is authenticated
+        setAuthError(null)
       }
     }
     getSession()
   }, [])
 
-  // Check for OAuth callback on page load
   useEffect(() => {
     const checkAuthCallback = async () => {
       try {
@@ -651,8 +661,8 @@ function App() {
       }
 
       // Check if we have a URL to redirect to
-      const redirectUrl = data?.url || (data as any)?.redirectUrl || (data as any)?.redirect_to
-      if (redirectUrl && typeof redirectUrl === 'string' && redirectUrl.trim() !== '') {
+      const redirectUrl = getRedirectUrlFromOAuthResponse(data)
+      if (redirectUrl) {
         console.log('Redirecting to OAuth URL:', redirectUrl)
         // Clear any errors before redirecting
         setAuthError(null)
@@ -842,7 +852,9 @@ function App() {
             data-tip="Chat history"
             onClick={() => setRailOpen(!railOpen)}
           >
-            <span className="ic">📋</span>
+            <span className="ic">
+              <img src="https://cdn-icons-png.flaticon.com/512/12113/12113351.png" alt="Chat history icon" />
+            </span>
             <span className="label">Chat history</span>
             {railOpen && (
               <div className="quota">
@@ -855,7 +867,9 @@ function App() {
             <div className="chat-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
               {chats.length === 0 ? (
                 <div className="empty-chat-state">
-                  <div className="empty-icon">📋</div>
+                  <div className="empty-icon">
+                    <img src="https://cdn-icons-png.flaticon.com/512/12113/12113351.png" alt="Chat history icon" />
+                  </div>
                   <div className="empty-text">No chats yet</div>
                   <div className="empty-hint">Start a new conversation to get started</div>
                 </div>

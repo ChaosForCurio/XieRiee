@@ -74,7 +74,6 @@ app.post('/api/chat', async (req, res) => {
   }
 })
 
-// Simple health endpoint to help diagnose environment/network
 app.get('/api/health', async (req, res) => {
   const hasFetch = typeof fetch === 'function'
   const hasKey = !!process.env.GEMINI_API_KEY
